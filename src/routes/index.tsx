@@ -4,6 +4,11 @@ import { ScoreCircle, VerdictBadge, ScoreBar, AngleCard } from "~/components/rep
 import type { AngleReport, Report } from "~/components/report-cards";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    links: [
+      { rel: "canonical", href: "https://steelproof.ctonew.app" },
+    ],
+  }),
   component: Home,
 });
 
@@ -237,6 +242,83 @@ function Home() {
               <p className="text-xs text-gray-600 mt-2">Join founders who've validated their ideas</p>
             </div>
           </div>
+
+          {/* How it works */}
+          <section className="mt-20 w-full max-w-3xl">
+            <h2 className="mb-8 text-center text-2xl font-bold text-gray-100 sm:text-3xl">
+              How it works
+            </h2>
+            <div className="grid gap-6 sm:grid-cols-3">
+              {[
+                {
+                  step: "1",
+                  title: "Describe your idea",
+                  desc: "Write a few sentences about your startup concept. What problem does it solve, who is it for, and how does it work? The more detail you share, the sharper your report.",
+                },
+                {
+                  step: "2",
+                  title: "AI stress-tests it",
+                  desc: "Our AI plays devil's advocate, interrogating your idea from four critical angles — market demand, technical feasibility, competitive landscape, and financial viability.",
+                },
+                {
+                  step: "3",
+                  title: "Get your report",
+                  desc: "Within seconds you'll receive a scored report with red flags, green lights, and specific experiments to derisk your concept before you spend months building the wrong thing.",
+                },
+              ].map((item) => (
+                <div key={item.step} className="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-left">
+                  <span className="mb-3 inline-block rounded-lg bg-amber-950/50 px-3 py-1 text-xs font-bold text-amber-400">
+                    Step {item.step}
+                  </span>
+                  <h3 className="mb-2 text-lg font-semibold text-gray-100">{item.title}</h3>
+                  <p className="text-sm leading-relaxed text-gray-400">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* What you'll learn */}
+          <section className="mt-20 w-full max-w-3xl">
+            <h2 className="mb-8 text-center text-2xl font-bold text-gray-100 sm:text-3xl">
+              What you'll learn
+            </h2>
+            <p className="mb-8 text-center text-gray-400">
+              Every SteelProof report evaluates your idea across four dimensions that investors and accelerators care about most.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {[
+                {
+                  title: "Market Demand",
+                  icon: "📊",
+                  desc: "Is there real demand for what you're building, or is it wishful thinking? We pressure-test your assumptions about customer pain, market size, and willingness to pay — so you know whether you're solving a vitamin problem or a painkiller problem.",
+                },
+                {
+                  title: "Technical Feasibility",
+                  icon: "⚙️",
+                  desc: "Can it actually be built with today's technology, or are there hidden complexity bombs waiting to go off? We flag technical risks early — integration headaches, scale challenges, and platform dependencies — so your roadmap is grounded in reality.",
+                },
+                {
+                  title: "Competitive Landscape",
+                  icon: "🏔️",
+                  desc: "Who's already in the space, and how do you win against them? We map direct competitors, indirect substitutes, and the 'do nothing' alternative — then help you find the wedge that makes your idea defensible.",
+                },
+                {
+                  title: "Financial Viability",
+                  icon: "💰",
+                  desc: "Can this actually make money? We examine unit economics, revenue model assumptions, and path to breakeven. If the numbers don't add up, you'll know before you invest your savings — not after.",
+                },
+              ].map((item) => (
+                <div key={item.title} className="rounded-xl border border-gray-800 bg-gray-900/50 p-6 text-left">
+                  <span className="mb-2 block text-2xl">{item.icon}</span>
+                  <h3 className="mb-2 text-lg font-semibold text-gray-100">{item.title}</h3>
+                  <p className="text-sm leading-relaxed text-gray-400">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-6 text-center text-sm text-gray-500">
+              Each angle comes with a specific, low-cost experiment you can run this week — no "build an MVP and see what happens" advice. Concrete next steps only.
+            </p>
+          </section>
         </main>
       )}
 
