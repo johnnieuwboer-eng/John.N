@@ -195,16 +195,28 @@ function Home() {
         <main className="flex flex-1 flex-col items-center justify-center px-6 py-16">
           <div className="w-full max-w-2xl text-center">
             <span className="mb-4 inline-block rounded-full border border-amber-800/50 bg-amber-950/30 px-3 py-1 text-xs font-medium text-amber-400">
-              AI-Powered Startup Validation
+              Your AI co-founder
             </span>
             <h1 className="mb-4 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Stress-test your startup idea<br />
-              <span className="text-amber-500">before you build it</span>
+              Stop building startups<br />
+              <span className="text-amber-500">nobody wants</span>
             </h1>
-            <p className="mb-10 text-lg leading-relaxed text-gray-400">
-              Describe your idea and SteelProof will play devil's advocate — analyzing market demand, technical feasibility, competition, and
-              financial viability. Get a scored report with specific experiments to derisk your concept before you spend months building.
+            <p className="mb-6 text-xl leading-relaxed text-gray-300">
+              Get an AI-powered investor-style review of your idea in under 5 minutes.
             </p>
+            <div className="mb-10 grid grid-cols-2 gap-3 text-left max-w-lg mx-auto">
+              {[
+                "Find hidden risks",
+                "Discover competitors you missed",
+                "Challenge your assumptions",
+                "Get actionable next steps",
+              ].map((item) => (
+                <div key={item} className="flex items-start gap-2 text-gray-300">
+                  <span className="mt-0.5 text-amber-500 flex-shrink-0">✓</span>
+                  <span className="text-sm">{item}</span>
+                </div>
+              ))}
+            </div>
             <div className="space-y-4">
               <textarea
                 value={idea}
@@ -219,9 +231,10 @@ function Home() {
                 disabled={idea.trim().length < 20}
                 className="w-full rounded-xl bg-amber-500 px-8 py-4 text-lg font-semibold text-gray-950 transition-all hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Analyze My Idea<span className="ml-2 text-sm font-normal opacity-60">— free</span>
+                Analyze My Idea — Free
               </button>
               <p className="text-xs text-gray-600">First analysis is free. No account required.</p>
+              <p className="text-xs text-gray-600 mt-2">Join founders who've validated their ideas</p>
             </div>
           </div>
         </main>
