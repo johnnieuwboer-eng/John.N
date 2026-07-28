@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://steelproof.ctonew.app/sitemap.xml
