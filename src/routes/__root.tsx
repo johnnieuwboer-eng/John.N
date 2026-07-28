@@ -33,6 +33,7 @@ export const Route = createRootRoute({
       { property: "og:image", content: "https://steelproof.ctonew.app/og-image.png" },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
+      { property: "og:image:alt", content: "SteelProof — AI-powered startup idea stress-test report" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Stop Building Startups Nobody Wants | SteelProof" },
       { name: "twitter:description", content: "Get an AI-powered investor-style review of your startup idea in under 5 minutes. Find hidden risks, discover competitors, and get actionable next steps. Free first report." },
@@ -71,13 +72,15 @@ function RootDocument({ children }: { children: ReactNode }) {
               name: "SteelProof",
               url: "https://steelproof.ctonew.app",
               description:
-                "AI-powered startup idea validator that stress-tests your concept before you build.",
+                "Get an AI-powered investor-style review of your startup idea in under 5 minutes. Find hidden risks, discover competitors, and get actionable next steps. Free first report.",
               applicationCategory: "BusinessApplication",
               operatingSystem: "Web",
               offers: {
                 "@type": "Offer",
                 price: "9.99",
                 priceCurrency: "EUR",
+                availability: "https://schema.org/InStock",
+                priceValidUntil: "2026-12-31",
               },
             }),
           }}
