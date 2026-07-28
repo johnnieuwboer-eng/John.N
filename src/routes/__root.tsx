@@ -15,18 +15,18 @@ export const Route = createRootRoute({
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       {
         title:
-          "Startup Idea Validator — AI Stress-Test | SteelProof",
+          "Stop Building Startups Nobody Wants | SteelProof",
       },
       {
         name: "description",
         content:
-          "SteelProof stress-tests your startup idea with AI. Get a scored report on market, tech, competition, and financial viability — before you build.",
+          "Get an AI-powered investor-style review of your startup idea in under 5 minutes. Find hidden risks, discover competitors, and get actionable next steps. Free first report.",
       },
       { name: "robots", content: "index, follow" },
       { name: "author", content: "SteelProof" },
       { name: "theme-color", content: "#f59e0b" },
-      { property: "og:title", content: "Startup Idea Validator — AI Stress-Test | SteelProof" },
-      { property: "og:description", content: "SteelProof stress-tests your startup idea with AI. Get a scored report on market, tech, competition, and financial viability — before you build." },
+      { property: "og:title", content: "Stop Building Startups Nobody Wants | SteelProof" },
+      { property: "og:description", content: "Get an AI-powered investor-style review of your startup idea in under 5 minutes. Find hidden risks, discover competitors, and get actionable next steps. Free first report." },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://steelproof.ctonew.app" },
       { property: "og:site_name", content: "SteelProof" },
@@ -34,8 +34,8 @@ export const Route = createRootRoute({
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Startup Idea Validator — AI Stress-Test | SteelProof" },
-      { name: "twitter:description", content: "SteelProof stress-tests your startup idea with AI. Get a scored report on market, tech, competition, and financial viability — before you build." },
+      { name: "twitter:title", content: "Stop Building Startups Nobody Wants | SteelProof" },
+      { name: "twitter:description", content: "Get an AI-powered investor-style review of your startup idea in under 5 minutes. Find hidden risks, discover competitors, and get actionable next steps. Free first report." },
       { name: "twitter:image", content: "https://steelproof.ctonew.app/og-image.png" },
     ],
     links: [
