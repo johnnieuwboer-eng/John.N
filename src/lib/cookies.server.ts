@@ -1,13 +1,17 @@
-import { createHash } from "node:crypto";
+import { createHmac } from "node:crypto";
 
-const COOKIE_SECRET = process.env.COOKIE_SECRET || "steelproof-mvp-secret";
+const COOKIE_SECRET = process.env.COOKIE_SECRET;
+if (!COOKIE_SECRET) {
+  throw new Error("COOKIE_SECRET environment variable is required");
+}
+
 const FREE_COOKIE = "sp_free";
 const PAID_COOKIE = "sp_paid";
 
 /** Sign a value with HMAC-SHA256 to prevent tampering. */
 export function signValue(value: string): string {
-  const hmac = createHash("sha256");
-  hmac.update(`${value}:${COOKIE_SECRET}`);
+  const hmac = createHmac("sha256", COOKIE_SECRET);
+  hmac.update(value);
   return `${value}.${hmac.digest("hex").slice(0, 16)}`;
 }
 
