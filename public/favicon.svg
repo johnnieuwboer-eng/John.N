@@ -1,4 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Background -->
   <rect width="32" height="32" rx="6" fill="#0f172a"/>
-  <text x="16" y="22" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="bold" font-size="16" fill="#f59e0b">SP</text>
+  <!-- Shield -->
+  <path d="M 16 3 L 25 6 L 25 15 Q 25 21 16 28 Q 7 21 7 15 L 7 6 Z" fill="#f59e0b"/>
+  <!-- Checkmark (negative space in shield) -->
+  <path d="M 11.5 16 L 14.5 19 L 20.5 13" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

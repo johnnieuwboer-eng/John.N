@@ -208,16 +208,20 @@ const examples: { idea: string; report: Report }[] = [
 // ── Page Component ────────────────────────────────────────────────────────────
 
 function ExamplesPage() {
-  const businessName = "SteelProof";
-
   return (
     <div className="flex min-h-dvh flex-col">
       {/* Header */}
       <header className="border-b border-gray-800">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-6">
-            <a href="/" className="text-xl font-bold tracking-tight text-gray-100">
-              {businessName}
+            <a href="/" className="inline-flex items-center gap-2" aria-label="SteelProof home">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" className="h-8 w-auto" aria-hidden="true">
+                <g transform="translate(0, 4)">
+                  <path d="M 16 1 L 25 4 L 25 13 Q 25 19 16 26 Q 7 19 7 13 L 7 4 Z" fill="#f59e0b"/>
+                  <path d="M 11.5 14 L 14.5 17 L 20.5 11" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </g>
+                <text x="36" y="29" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="20" fill="#f59e0b" letter-spacing="-0.5">SteelProof</text>
+              </svg>
             </a>
             <a
               href="/examples"
