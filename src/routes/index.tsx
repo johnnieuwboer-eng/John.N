@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useCallback } from "react";
 import { ScoreCircle, VerdictBadge, ScoreBar, AngleCard } from "~/components/report-cards";
 import type { AngleReport, Report } from "~/components/report-cards";
+import { useReportImage } from "~/components/ReportCardImage";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -216,6 +217,7 @@ function Home() {
   const [errorMsg, setErrorMsg] = useState("");
   const [userPaid, setUserPaid] = useState(false);
   const [reportsGenerated, setReportsGenerated] = useState<number | null>(null);
+  const [pageViews, setPageViews] = useState<number | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [paymentLink, setPaymentLink] = useState<string>("#");
   const [partialReport, setPartialReport] = useState<PartialReport | null>(null);
@@ -285,8 +287,9 @@ function Home() {
   useEffect(() => {
     fetch("/api/stats")
       .then((r) => r.json())
-      .then((data: { reportsGenerated: number }) => {
+      .then((data: { reportsGenerated: number; pageViews: number }) => {
         setReportsGenerated(data.reportsGenerated ?? 0);
+        setPageViews(data.pageViews ?? 0);
       })
       .catch(() => {});
   }, []);
@@ -402,6 +405,14 @@ function Home() {
     }
   }, [report]);
 
+  const { generateImage, isGenerating, error: imageError } = useReportImage();
+
+  const handleShareImage = useCallback(async () => {
+    const data = report || partialReport;
+    if (!data) return;
+    await generateImage(data, idea);
+  }, [report, partialReport, idea, generateImage]);
+
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="border-b border-gray-800">
@@ -474,7 +485,9 @@ function Home() {
               </button>
               <p className="text-xs text-gray-500">One free report per founder — make it count.</p>
               {reportsGenerated !== null && reportsGenerated > 0 && (
-                <p className="text-xs text-gray-500 mt-2">{reportsGenerated} startup ideas stress-tested so far</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  {reportsGenerated} startup ideas stress-tested · {pageViews !== null ? pageViews : 0} visitors
+                </p>
               )}
             </div>
           </div>
@@ -591,7 +604,15 @@ function Home() {
               <button id="copy-btn" onClick={handleCopyReport} className="rounded-xl bg-gray-800 px-6 py-3 font-medium text-gray-200 transition-colors hover:bg-gray-700">
                 Copy Report
               </button>
+              <button
+                onClick={handleShareImage}
+                disabled={isGenerating}
+                className="rounded-xl bg-amber-600 px-6 py-3 font-medium text-white transition-colors hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isGenerating ? "Generating..." : "Share as Image"}
+              </button>
             </div>
+            {imageError && <p className="mt-3 text-center text-sm text-red-400">{imageError}</p>}
           </div>
         </main>
       )}
@@ -627,7 +648,15 @@ function Home() {
               <button onClick={handleReset} className="rounded-xl border border-gray-700 bg-gray-900 px-6 py-3 font-medium text-gray-200 transition-colors hover:border-gray-600 hover:bg-gray-800">
                 Try a different idea
               </button>
+              <button
+                onClick={handleShareImage}
+                disabled={isGenerating}
+                className="rounded-xl bg-amber-600 px-6 py-3 font-medium text-white transition-colors hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isGenerating ? "Generating..." : "Share as Image"}
+              </button>
             </div>
+            {imageError && <p className="mt-3 text-center text-sm text-red-400">{imageError}</p>}
           </div>
         </main>
       )}
