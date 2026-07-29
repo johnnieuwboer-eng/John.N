@@ -11,6 +11,7 @@
 import handler from "./dist/server/server.js";
 import { getCookieStatus, signValue } from "./src/lib/cookies.server.ts";
 import { callLLM, mockReport } from "./src/lib/llm";
+import type { Report } from "./src/lib/llm";
 
 // Pinned, NOT read from the environment. The published preview URL
 // (<label>.<PUBLIC_SITE_DOMAIN>) is reverse-proxied to 0.0.0.0:3000 inside the
@@ -110,6 +111,23 @@ function addSecurityHeaders(response: Response): Response {
 
 let reportsGenerated = 0;
 
+// ── In-memory partial report session store (30-min TTL) ────────────────────────
+
+interface SessionEntry {
+  report: Report;
+  expiresAt: number;
+}
+
+const sessionStore = new Map<string, SessionEntry>();
+
+// Cleanup expired sessions every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, entry] of sessionStore) {
+    if (entry.expiresAt < now) sessionStore.delete(id);
+  }
+}, 300000).unref();
+
 // ── Report generation helper ──────────────────────────────────────────────────
 
 async function runReport(idea: string) {
@@ -146,6 +164,7 @@ async function handleAnalyze(req: Request): Promise<Response> {
   }
 
   const status = getCookieStatus(req);
+  const paymentLink = process.env.STRIPE_PAYMENT_LINK || "#";
 
   // Rate limit: 30/hr for paid, 5/hr for free
   const ip = getIP(req);
@@ -157,35 +176,66 @@ async function handleAnalyze(req: Request): Promise<Response> {
     );
   }
 
+  // ── Paid user: full report, no restrictions ───────────────────────────────
   if (status.hasPaid) {
     try {
       const report = await runReport(body.idea.trim());
       reportsGenerated++;
-      return Response.json({ report });
+      return Response.json({ report, paymentLink });
     } catch (err) {
       console.error("Report generation failed:", err);
       return Response.json({ error: "Failed to generate report." }, { status: 500 });
     }
   }
 
+  // ── First-time free user: full report + set free cookie ───────────────────
   if (!status.hasFree) {
     try {
       const report = await runReport(body.idea.trim());
       reportsGenerated++;
       const cookieVal = signValue("1");
-      return Response.json({ report, setFreeCookie: cookieVal });
+      return Response.json({ report, setFreeCookie: cookieVal, paymentLink });
     } catch (err) {
       console.error("Report generation failed:", err);
       return Response.json({ error: "Failed to generate report." }, { status: 500 });
     }
   }
 
-  return Response.json({
-    paywall: true,
-    message:
-      "You've used your free analysis. Get unlimited reports for €9.99 one-time.",
-    paymentLink: process.env.STRIPE_PAYMENT_LINK || "#",
-  });
+  // ── Returning free user (no paid): partial report tease ───────────────────
+  try {
+    const fullReport = await runReport(body.idea.trim());
+    reportsGenerated++;
+
+    // Generate a session ID and store the full report (30-min TTL)
+    const sessionId = crypto.randomUUID();
+    sessionStore.set(sessionId, {
+      report: fullReport,
+      expiresAt: Date.now() + 30 * 60_000,
+    });
+
+    // Build a partial report: scores + verdicts only, no analysis/experiment text
+    const partialReport = {
+      overallScore: fullReport.overallScore,
+      summary: fullReport.summary,
+      angles: fullReport.angles.map((a) => ({
+        name: a.name,
+        score: a.score,
+        verdict: a.verdict,
+      })),
+    };
+
+    return Response.json({
+      partial: true,
+      partialReport,
+      sessionId,
+      paymentLink,
+      message:
+        "You've used your free analysis. Here's a preview — unlock the full report for €9.99.",
+    });
+  } catch (err) {
+    console.error("Report generation failed:", err);
+    return Response.json({ error: "Failed to generate report." }, { status: 500 });
+  }
 }
 
 async function handlePaid(req: Request): Promise<Response> {
@@ -229,6 +279,31 @@ async function handleStats(_req: Request): Promise<Response> {
   return Response.json({ reportsGenerated });
 }
 
+async function handleGetReport(req: Request, sessionId: string): Promise<Response> {
+  const entry = sessionStore.get(sessionId);
+  if (!entry) {
+    return Response.json({ error: "Report not found or expired." }, { status: 404 });
+  }
+
+  if (entry.expiresAt < Date.now()) {
+    sessionStore.delete(sessionId);
+    return Response.json({ error: "Report expired." }, { status: 410 });
+  }
+
+  const status = getCookieStatus(req);
+  if (!status.hasPaid) {
+    return Response.json(
+      { error: "Payment required to unlock the full report." },
+      { status: 402 },
+    );
+  }
+
+  // Return full report and clean up the session
+  const report = entry.report;
+  sessionStore.delete(sessionId);
+  return Response.json({ report });
+}
+
 // ── Main server ──────────────────────────────────────────────────────────────
 
 for (let attempt = 1; ; attempt++) {
@@ -251,6 +326,11 @@ for (let attempt = 1; ; attempt++) {
         }
         if (pathname === "/api/stats" && req.method === "GET") {
           return addSecurityHeaders(await handleStats(req));
+        }
+        // GET /api/report/:sessionId — retrieve full report after payment
+        const reportMatch = pathname.match(/^\/api\/report\/([a-zA-Z0-9-]+)$/);
+        if (reportMatch && req.method === "GET") {
+          return addSecurityHeaders(await handleGetReport(req, reportMatch[1]!));
         }
 
         // ── Static files ────────────────────────────────────────

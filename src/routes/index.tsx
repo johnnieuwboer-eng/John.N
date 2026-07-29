@@ -14,8 +14,18 @@ export const Route = createFileRoute("/")({
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+/** A report with scores/verdicts only — no analysis or experiments. */
+interface PartialReport {
+  overallScore: number;
+  summary: string;
+  angles: { name: string; score: number; verdict: string }[];
+}
+
 interface ApiResponse {
   report?: Report;
+  partial?: boolean;
+  partialReport?: PartialReport;
+  sessionId?: string;
   paywall?: boolean;
   message?: string;
   paymentLink?: string;
@@ -24,15 +34,20 @@ interface ApiResponse {
   paidCookie?: string;
 }
 
-type AppState = "form" | "loading" | "report" | "paywall" | "error";
+type AppState = "form" | "loading" | "report" | "partial" | "paywall" | "error";
 
 // ── Cookie helpers ───────────────────────────────────────────────────────────
 
 const COOKIE_NAMES = { free: "sp_free", paid: "sp_paid" } as const;
+const SESSION_STORAGE_KEY = "sp_pending_session";
 
 function setClientCookie(name: string, value: string, days = 365) {
   const expires = new Date(Date.now() + days * 86400000).toUTCString();
   document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax; Secure`;
+}
+
+function hasPaidCookie(): boolean {
+  return document.cookie.split(";").some((c) => c.trim().startsWith(`${COOKIE_NAMES.paid}=`));
 }
 
 // ── Sub-components ───────────────────────────────────────────────────────────
@@ -103,6 +118,93 @@ function PaywallOverlay({ message, paymentLink, onClose }: { message: string; pa
   );
 }
 
+/** Fix 1: Upsell card shown after a full free report. */
+function UpsellCard({ paymentLink }: { paymentLink: string }) {
+  return (
+    <div className="rounded-xl border-2 border-amber-700/60 bg-amber-950/20 p-6 text-center">
+      <p className="mb-3 text-lg font-semibold text-amber-200">
+        Want to stress-test more ideas?
+      </p>
+      <p className="mb-4 text-sm leading-relaxed text-gray-300">
+        Get unlimited reports for €9.99 one-time. Compare multiple ideas, find
+        your strongest concept, and validate your entire pipeline.
+      </p>
+      <a
+        href={paymentLink}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mb-2 inline-block rounded-xl bg-amber-500 px-8 py-3 font-semibold text-gray-950 transition-colors hover:bg-amber-400"
+      >
+        Get Unlimited Reports — €9.99
+      </a>
+      <p className="text-xs text-gray-500">
+        Complete payment in the new tab, then return here.
+      </p>
+    </div>
+  );
+}
+
+/** Fix 2: Teaser card shown below a partial report, prompting upgrade. */
+function TeaserCard({ paymentLink, onCheckPayment }: { paymentLink: string; onCheckPayment: () => void }) {
+  return (
+    <div className="rounded-xl border-2 border-amber-700/60 bg-amber-950/20 p-6 text-center">
+      <div className="mb-3 text-3xl">🔓</div>
+      <p className="mb-2 text-lg font-semibold text-amber-200">
+        Unlock the full analysis and experiments
+      </p>
+      <p className="mb-1 text-3xl font-bold text-amber-400">€9.99</p>
+      <p className="mb-4 text-sm text-gray-400">one-time payment</p>
+      <ul className="mb-6 text-left text-sm text-gray-300 space-y-1.5 max-w-xs mx-auto">
+        <li className="flex items-start gap-2">
+          <span className="text-amber-400 flex-shrink-0">✓</span>
+          <span>Full analysis for each angle</span>
+        </li>
+        <li className="flex items-start gap-2">
+          <span className="text-amber-400 flex-shrink-0">✓</span>
+          <span>Specific derisking experiments</span>
+        </li>
+        <li className="flex items-start gap-2">
+          <span className="text-amber-400 flex-shrink-0">✓</span>
+          <span>Unlimited future reports</span>
+        </li>
+      </ul>
+      <a
+        href={paymentLink}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mb-3 block w-full rounded-xl bg-amber-500 px-6 py-3 text-center font-semibold text-gray-950 transition-colors hover:bg-amber-400"
+      >
+        Get Unlimited Reports — €9.99
+      </a>
+      <p className="mb-2 text-xs text-gray-500">
+        Complete payment in the new tab, then return here.
+      </p>
+      <button
+        onClick={onCheckPayment}
+        className="text-sm font-medium text-amber-400 underline transition-colors hover:text-amber-300"
+      >
+        I've completed payment — show my full report
+      </button>
+    </div>
+  );
+}
+
+/** A card showing only the score bar and verdict badge — no analysis or experiment text. */
+function PartialAngleCard({ angle, index }: { angle: { name: string; score: number; verdict: string }; index: number }) {
+  return (
+    <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5 transition-all hover:border-gray-700" style={{ animationDelay: `${index * 100}ms` }}>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <h4 className="text-lg font-semibold text-gray-100">{angle.name}</h4>
+        <VerdictBadge verdict={angle.verdict} />
+      </div>
+      <div className="flex items-center gap-3">
+        <ScoreBar score={angle.score} />
+        <span className="min-w-[2ch] text-sm font-bold text-gray-400">{angle.score}/10</span>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ───────────────────────────────────────────────────────────
 
 function Home() {
@@ -114,6 +216,32 @@ function Home() {
   const [errorMsg, setErrorMsg] = useState("");
   const [userPaid, setUserPaid] = useState(false);
   const [reportsGenerated, setReportsGenerated] = useState<number | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [paymentLink, setPaymentLink] = useState<string>("#");
+  const [partialReport, setPartialReport] = useState<PartialReport | null>(null);
+
+  /** Attempt to fetch the full report for a pending session ID. */
+  const fetchFullReport = useCallback(async (sid: string) => {
+    try {
+      const res = await fetch(`/api/report/${sid}`);
+      if (!res.ok) return false;
+      const data: ApiResponse = await res.json();
+      if (data.report) {
+        setReport(data.report);
+        setState("report");
+        sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        setSessionId(null);
+        setPartialReport(null);
+        setTimeout(() => {
+          document.getElementById("report-section")?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+        return true;
+      }
+    } catch {
+      // Ignore fetch errors
+    }
+    return false;
+  }, []);
 
   // Detect Stripe return with ?paid=true
   useEffect(() => {
@@ -125,12 +253,33 @@ function Home() {
           if (data.paidCookie) {
             setClientCookie(COOKIE_NAMES.paid, data.paidCookie);
             setUserPaid(true);
+
+            // If there's a pending session, fetch the full report
+            const pendingSid = sessionStorage.getItem(SESSION_STORAGE_KEY);
+            if (pendingSid) {
+              fetchFullReport(pendingSid);
+            }
           }
           window.history.replaceState({}, "", "/");
         })
         .catch(() => {});
     }
-  }, []);
+  }, [fetchFullReport]);
+
+  // Detect when user returns from payment in another tab (visibility change)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && hasPaidCookie() && !userPaid) {
+        setUserPaid(true);
+        const pendingSid = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (pendingSid) {
+          fetchFullReport(pendingSid);
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [userPaid, fetchFullReport]);
 
   // Fetch live reports-generated counter
   useEffect(() => {
@@ -160,6 +309,11 @@ function Home() {
       });
       const data: ApiResponse = await res.json();
 
+      // Store payment link for upsell/teaser cards
+      if (data.paymentLink) {
+        setPaymentLink(data.paymentLink);
+      }
+
       if (data.paywall) {
         setPaywallMsg(data.message || "Free report used.");
         setPaywallLink(data.paymentLink || "#");
@@ -173,6 +327,20 @@ function Home() {
         return;
       }
 
+      // ── Partial report (returning free user) ────────────────────────
+      if (data.partial && data.partialReport && data.sessionId) {
+        setPartialReport(data.partialReport);
+        setSessionId(data.sessionId);
+        // Persist session ID so we can recover after payment in another tab
+        sessionStorage.setItem(SESSION_STORAGE_KEY, data.sessionId);
+        setState("partial");
+        setTimeout(() => {
+          document.getElementById("partial-report-section")?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+        return;
+      }
+
+      // ── Full report (paid user or first-time free) ──────────────────
       if (data.report) {
         if (data.setFreeCookie) {
           setClientCookie(COOKIE_NAMES.free, data.setFreeCookie);
@@ -196,8 +364,21 @@ function Home() {
   const handleReset = useCallback(() => {
     setState("form");
     setReport(null);
+    setPartialReport(null);
+    setSessionId(null);
     setErrorMsg("");
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
   }, []);
+
+  const handleCheckPayment = useCallback(() => {
+    if (hasPaidCookie()) {
+      setUserPaid(true);
+      const pendingSid = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (pendingSid) {
+        fetchFullReport(pendingSid);
+      }
+    }
+  }, [fetchFullReport]);
 
   const handleCopyReport = useCallback(() => {
     if (!report) return;
@@ -383,6 +564,7 @@ function Home() {
         </main>
       )}
 
+      {/* ── Full report (paid user or first-time free) ──────────────────── */}
       {state === "report" && report && (
         <main id="report-section" className="flex-1 px-6 py-10">
           <div className="mx-auto max-w-3xl">
@@ -394,12 +576,56 @@ function Home() {
             <div className="mb-10 space-y-4">
               {report.angles.map((angle, i) => (<AngleCard key={angle.name} angle={angle} index={i} />))}
             </div>
+
+            {/* Fix 1: Post-report upsell card (only shown to free users, not paid) */}
+            {!userPaid && paymentLink !== "#" && (
+              <div className="mb-10">
+                <UpsellCard paymentLink={paymentLink} />
+              </div>
+            )}
+
             <div className="flex flex-col items-center gap-4 border-t border-gray-800 pt-8 sm:flex-row sm:justify-center">
               <button onClick={handleReset} className="rounded-xl border border-gray-700 bg-gray-900 px-6 py-3 font-medium text-gray-200 transition-colors hover:border-gray-600 hover:bg-gray-800">
                 Stress-test another idea
               </button>
               <button id="copy-btn" onClick={handleCopyReport} className="rounded-xl bg-gray-800 px-6 py-3 font-medium text-gray-200 transition-colors hover:bg-gray-700">
                 Copy Report
+              </button>
+            </div>
+          </div>
+        </main>
+      )}
+
+      {/* ── Partial report (returning free user — Fix 2) ───────────────── */}
+      {state === "partial" && partialReport && (
+        <main id="partial-report-section" className="flex-1 px-6 py-10">
+          <div className="mx-auto max-w-3xl">
+            <div className="mb-6 text-center">
+              <div className="mb-4 flex justify-center"><ScoreCircle score={partialReport.overallScore} /></div>
+              <h2 className="mb-3 text-2xl font-bold text-gray-100 sm:text-3xl">Report Preview</h2>
+              <p className="mx-auto max-w-xl text-gray-400">{partialReport.summary}</p>
+            </div>
+
+            <div className="mb-4 rounded-xl border border-gray-800 bg-gray-900/30 p-4 text-center">
+              <p className="text-sm text-gray-400">
+                You've used your free report. Here's a preview — unlock the full analysis below.
+              </p>
+            </div>
+
+            <div className="mb-10 space-y-4">
+              {partialReport.angles.map((angle, i) => (
+                <PartialAngleCard key={angle.name} angle={angle} index={i} />
+              ))}
+            </div>
+
+            {/* Fix 2: Teaser card to unlock full report */}
+            <div className="mb-10">
+              <TeaserCard paymentLink={paymentLink} onCheckPayment={handleCheckPayment} />
+            </div>
+
+            <div className="flex flex-col items-center gap-4 border-t border-gray-800 pt-8">
+              <button onClick={handleReset} className="rounded-xl border border-gray-700 bg-gray-900 px-6 py-3 font-medium text-gray-200 transition-colors hover:border-gray-600 hover:bg-gray-800">
+                Try a different idea
               </button>
             </div>
           </div>
