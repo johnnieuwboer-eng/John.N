@@ -38,6 +38,22 @@ function setClientCookie(name: string, value: string, days = 365) {
 // ── Sub-components ───────────────────────────────────────────────────────────
 
 function LoadingState() {
+  const messages = [
+    "Analyzing your idea...",
+    "Checking market demand...",
+    "Evaluating competitive landscape...",
+    "Assessing financial viability...",
+    "Compiling your report...",
+  ];
+  const [msgIndex, setMsgIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setMsgIndex((i) => (i + 1) % messages.length);
+    }, 2500);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <div className="flex flex-col items-center gap-6 py-20">
       <div className="flex items-center gap-2">
@@ -45,7 +61,7 @@ function LoadingState() {
           <div key={i} className="h-3 w-3 animate-bounce rounded-full bg-amber-500" style={{ animationDelay: `${i * 150}ms` }} />
         ))}
       </div>
-      <p className="text-lg text-gray-400">Analyzing your idea...</p>
+      <p className="text-lg text-gray-400">{messages[msgIndex]}</p>
       <div className="w-full max-w-md space-y-3">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="h-16 animate-pulse rounded-lg bg-gray-800" style={{ animationDelay: `${i * 200}ms` }} />
@@ -61,7 +77,21 @@ function PaywallOverlay({ message, paymentLink, onClose }: { message: string; pa
       <div className="w-full max-w-md rounded-2xl border border-gray-800 bg-gray-900 p-8 text-center shadow-2xl">
         <div className="mb-4 text-5xl">🔒</div>
         <h3 className="mb-2 text-2xl font-bold text-gray-100">Free Report Used</h3>
-        <p className="mb-6 text-gray-400">{message}</p>
+        <p className="mb-4 text-gray-400">{message}</p>
+        <ul className="mb-6 text-left text-sm text-gray-300 space-y-2">
+          <li className="flex items-start gap-2">
+            <span className="text-amber-400 flex-shrink-0">✓</span>
+            <span>Unlimited stress-test reports</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-amber-400 flex-shrink-0">✓</span>
+            <span>Compare multiple ideas side by side</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-amber-400 flex-shrink-0">✓</span>
+            <span>One payment, no subscription</span>
+          </li>
+        </ul>
         <a href={paymentLink} className="mb-3 block w-full rounded-xl bg-amber-500 px-6 py-3 text-center font-semibold text-gray-950 transition-colors hover:bg-amber-400">
           Get Unlimited Reports — €9.99
         </a>
@@ -83,6 +113,7 @@ function Home() {
   const [paywallLink, setPaywallLink] = useState("#");
   const [errorMsg, setErrorMsg] = useState("");
   const [userPaid, setUserPaid] = useState(false);
+  const [reportsGenerated, setReportsGenerated] = useState<number | null>(null);
 
   // Detect Stripe return with ?paid=true
   useEffect(() => {
@@ -99,6 +130,16 @@ function Home() {
         })
         .catch(() => {});
     }
+  }, []);
+
+  // Fetch live reports-generated counter
+  useEffect(() => {
+    fetch("/api/stats")
+      .then((r) => r.json())
+      .then((data: { reportsGenerated: number }) => {
+        setReportsGenerated(data.reportsGenerated ?? 0);
+      })
+      .catch(() => {});
   }, []);
 
   const handleSubmit = useCallback(async () => {
@@ -236,6 +277,12 @@ function Home() {
                 rows={5}
                 className="w-full rounded-xl border border-gray-700 bg-gray-900 px-5 py-4 text-gray-100 placeholder-gray-500 transition-colors focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none"
               />
+              <p className="text-xs text-gray-500">
+                Your idea is never stored, shared, or used to train AI models. We send it to the LLM, generate your report, and forget it.
+              </p>
+              <a href="/examples" className="inline-block text-sm text-amber-400 transition-colors hover:text-amber-300">
+                See an example report first →
+              </a>
               {errorMsg && <p className="text-sm text-red-400">{errorMsg}</p>}
               <button
                 onClick={handleSubmit}
@@ -244,8 +291,10 @@ function Home() {
               >
                 Analyze My Idea — Free
               </button>
-              <p className="text-xs text-gray-600">First analysis is free. No account required.</p>
-              <p className="text-xs text-gray-600 mt-2">Join founders who've validated their ideas</p>
+              <p className="text-xs text-gray-500">One free report per founder — make it count.</p>
+              {reportsGenerated !== null && reportsGenerated > 0 && (
+                <p className="text-xs text-gray-500 mt-2">{reportsGenerated} startup ideas stress-tested so far</p>
+              )}
             </div>
           </div>
 
