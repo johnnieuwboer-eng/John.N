@@ -106,6 +106,10 @@ function addSecurityHeaders(response: Response): Response {
   });
 }
 
+// ── In-memory stats counter ────────────────────────────────────────────────────
+
+let reportsGenerated = 0;
+
 // ── Report generation helper ──────────────────────────────────────────────────
 
 async function runReport(idea: string) {
@@ -156,6 +160,7 @@ async function handleAnalyze(req: Request): Promise<Response> {
   if (status.hasPaid) {
     try {
       const report = await runReport(body.idea.trim());
+      reportsGenerated++;
       return Response.json({ report });
     } catch (err) {
       console.error("Report generation failed:", err);
@@ -166,6 +171,7 @@ async function handleAnalyze(req: Request): Promise<Response> {
   if (!status.hasFree) {
     try {
       const report = await runReport(body.idea.trim());
+      reportsGenerated++;
       const cookieVal = signValue("1");
       return Response.json({ report, setFreeCookie: cookieVal });
     } catch (err) {
@@ -219,6 +225,10 @@ async function handlePaid(req: Request): Promise<Response> {
   return Response.json({ paidCookie: signValue(paidValue) });
 }
 
+async function handleStats(_req: Request): Promise<Response> {
+  return Response.json({ reportsGenerated });
+}
+
 // ── Main server ──────────────────────────────────────────────────────────────
 
 for (let attempt = 1; ; attempt++) {
@@ -238,6 +248,9 @@ for (let attempt = 1; ; attempt++) {
         }
         if (pathname === "/api/paid" && req.method === "POST") {
           return addSecurityHeaders(await handlePaid(req));
+        }
+        if (pathname === "/api/stats" && req.method === "GET") {
+          return addSecurityHeaders(await handleStats(req));
         }
 
         // ── Static files ────────────────────────────────────────
